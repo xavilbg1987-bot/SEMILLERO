@@ -259,7 +259,18 @@ select.input-field{cursor:pointer;}
       <div class="input-label">Contraseña</div>
       <input class="input-field" id="reg-password" type="password" placeholder="Mínimo 6 caracteres">
       <div class="input-label">Fecha de nacimiento</div>
-      <input class="input-field" id="reg-nacimiento" type="date">
+      <input class="input-field" id="reg-nacimiento" type="date" onchange="checkEdadTutor()">
+      
+      <!-- DATOS DEL TUTOR (se muestra si es menor de 18) -->
+      <div id="reg-tutor-section" style="display:none;background:rgba(155,106,232,.08);border:1px solid rgba(155,106,232,.4);border-radius:12px;padding:14px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🔒 Datos del tutor (obligatorio para menores de 18)</div>
+        <div class="input-label">Nombre del tutor <span style="color:var(--red)">*</span></div>
+        <input class="input-field" id="reg-tutor-nombre" placeholder="ej. María García">
+        <div class="input-label">Teléfono del tutor <span style="color:var(--red)">*</span></div>
+        <input class="input-field" id="reg-tutor-telefono" type="tel" placeholder="ej. 1187654321">
+        <div class="input-label">Email del tutor</div>
+        <input class="input-field" id="reg-tutor-email" type="email" placeholder="ej. madre@gmail.com">
+      </div>
       <div class="input-label">Posición en la cancha</div>
       <select class="input-field" id="reg-posicion">
         <option value="">Seleccioná tu posición</option>
@@ -775,6 +786,18 @@ async function doLogin() {
   await loadProfile(data.user);
 }
 
+function checkEdadTutor() {
+  const nacimiento = document.getElementById('reg-nacimiento').value;
+  if (!nacimiento) return;
+  const age = new Date().getFullYear() - new Date(nacimiento).getFullYear();
+  const section = document.getElementById('reg-tutor-section');
+  if (age < 18) {
+    section.style.display = 'block';
+  } else {
+    section.style.display = 'none';
+  }
+}
+
 async function doRegister() {
   clearAuthMessages();
   const nombre = document.getElementById('reg-nombre').value.trim();
@@ -792,18 +815,30 @@ async function doRegister() {
     return showAuthError('Completá todos los campos obligatorios.');
   }
 
-  // Calculate age category
+  // Calculate age
   const age = new Date().getFullYear() - new Date(nacimiento).getFullYear();
-  let edadCat = '16-17';
+  let edadCat = '+18';
   if (age <= 13) edadCat = '12-13';
   else if (age <= 15) edadCat = '14-15';
+  else if (age <= 17) edadCat = '16-17';
+
+  // Validate tutor fields for minors
+  let tutorNombre = '', tutorTelefono = '', tutorEmail = '';
+  if (age < 18) {
+    tutorNombre = document.getElementById('reg-tutor-nombre').value.trim();
+    tutorTelefono = document.getElementById('reg-tutor-telefono').value.trim();
+    tutorEmail = document.getElementById('reg-tutor-email').value.trim();
+    if (!tutorNombre || !tutorTelefono) {
+      return showAuthError('⚠️ Como sos menor de 18, el nombre y teléfono del tutor son obligatorios.');
+    }
+  }
 
   const btn = document.getElementById('btn-register');
   btn.disabled = true; btn.textContent = 'Creando cuenta...';
 
   const { data, error } = await sb.auth.signUp({
     email, password,
-    options: { data: { nombre, apellido, rol: 'alumno', edad_cat: edadCat, posicion, club, categoria_club: categoria, tiene_profe: tieneProfe, compite_liga: liga, fecha_nacimiento: nacimiento, pago_activo: false, pago_vence: null } }
+    options: { data: { nombre, apellido, rol: 'alumno', edad_cat: edadCat, posicion, club, categoria_club: categoria, tiene_profe: tieneProfe, compite_liga: liga, fecha_nacimiento: nacimiento, pago_activo: false, pago_vence: null, tutor_nombre: tutorNombre, tutor_telefono: tutorTelefono, tutor_email: tutorEmail } }
   });
 
   btn.disabled = false; btn.textContent = 'Crear cuenta';
