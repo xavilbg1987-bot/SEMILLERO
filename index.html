@@ -287,9 +287,9 @@ select.input-field{cursor:pointer;}
       </select>
       <div class="input-label">Club donde jugás</div>
       <input class="input-field" id="reg-club" placeholder="ej. Club Atlético San Martín">
-      <div class="input-label">Categoría en el club (año de nacimiento)</div>
+      <div class="input-label">Categoría en el club (año) <span style="color:var(--green);font-size:10px">· Se completa automáticamente con tu fecha de nacimiento</span></div>
       <select class="input-field" id="reg-categoria">
-        <option value="">Seleccioná el año</option>
+        <option value="">Se completa con tu fecha de nacimiento ↑</option>
         ${Array.from({length:26},(_,i)=>2025-i).map(y=>`<option value="${y}">${y}</option>`).join('')}
       </select>
       <div class="form-row form-row-wrap">
@@ -796,6 +796,14 @@ function checkEdadTutor() {
   } else {
     section.style.display = 'none';
   }
+  // Auto-fill categoria with birth year
+  const anio = new Date(nacimiento).getFullYear();
+  const catSelect = document.getElementById('reg-categoria');
+  if (catSelect) {
+    for (let opt of catSelect.options) {
+      if (opt.value == anio) { opt.selected = true; break; }
+    }
+  }
 }
 
 async function doRegister() {
@@ -844,7 +852,7 @@ async function doRegister() {
   btn.disabled = false; btn.textContent = 'Crear cuenta';
 
   if (error) return showAuthError('Error: ' + error.message);
-  showAuthSuccess('✅ Cuenta creada. Revisá tu email para confirmar, luego iniciá sesión.');
+  showAuthSuccess('✅ ¡Cuenta creada! Tu acceso queda en espera de confirmación del profe. Te avisaremos cuando esté activo.');
 }
 
 async function doLogout() {
