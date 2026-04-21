@@ -678,7 +678,7 @@ async function loadProfile(user) {
     fecha_nacimiento: sbProfile.fecha_nacimiento || meta.fecha_nacimiento || '',
     pago_activo: sbProfile.pago_activo || false,
     pago_vence: sbProfile.pago_vence || null,
-    pago_pendiente: sbProfile.pago_pendiente || false,
+    pago_pendiente: sbProfile.pago_activo ? false : (sbProfile.pago_pendiente || false),
   };
   localStorage.setItem('profile_' + user.id, JSON.stringify(currentProfile));
   showApp();
@@ -706,6 +706,11 @@ function showApp() {
 
   renderSidebar();
   renderDashboard();
+
+  // Si no tiene pago activo y no es admin, mostrar pantalla de pago
+  if (currentProfile.rol !== 'admin' && !currentProfile.pago_activo) {
+    showScreen('pago', document.getElementById('sb-pago'));
+  }
 }
 
 function switchAuthTab(tab) {
@@ -1057,12 +1062,20 @@ async function renderDashboard() {
       ${proximosBanner}
 
       ${!pagoActivo ? `
-      <div style="background:rgba(224,82,82,.08);border:1px solid rgba(224,82,82,.2);border-radius:14px;padding:18px;margin-bottom:16px;text-align:center">
-        <div style="font-size:24px;margin-bottom:8px">🔒</div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Tu acceso está inactivo</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Realizá el pago para acceder a tus rutinas</div>
-        <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="showScreen('pago',document.getElementById('sb-pago'))">Ver cómo pagar →</button>
+      ${currentProfile.pago_pendiente ? `
+      <!-- EN ESPERA DE CONFIRMACION -->
+      <div style="background:linear-gradient(135deg,rgba(232,200,74,.15),rgba(232,200,74,.05));border:1px solid rgba(232,200,74,.4);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center">
+        <div style="font-size:36px;margin-bottom:8px">⏳</div>
+        <div style="font-family:var(--font-head);font-size:20px;letter-spacing:2px;color:var(--yellow);margin-bottom:6px">EN ESPERA DE CONFIRMACIÓN</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6">Tu pago está siendo verificado por el profe.<br>En cuanto lo confirme, vas a tener acceso completo.</div>
       </div>` : `
+      <!-- SIN PAGO -->
+      <div style="background:rgba(224,82,82,.08);border:1px solid rgba(224,82,82,.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center">
+        <div style="font-size:36px;margin-bottom:8px">🔒</div>
+        <div style="font-family:var(--font-head);font-size:20px;letter-spacing:2px;color:var(--red);margin-bottom:6px">ACCESO INACTIVO</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Para acceder a tus rutinas necesitás realizar el pago y enviarle el comprobante al profe.</div>
+        <button class="btn-primary" style="max-width:240px;margin:0 auto" onclick="showScreen('pago',document.getElementById('sb-pago'))">💳 Ver cómo pagar →</button>
+      </div>`}` : `
       <div class="progress-days" style="margin-bottom:16px">
         <div class="pd-top"><span>Días de acceso restantes</span><span style="color:var(--green);font-weight:700">${diasRestantes} / 30 días</span></div>
         <div class="prog-bar"><div class="prog-fill" style="width:${(diasRestantes/30)*100}%"></div></div>
@@ -2045,7 +2058,7 @@ async function confirmarPago() {
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ pago_activo: true, pago_vence: vence })
+      body: JSON.stringify({ pago_activo: true, pago_vence: vence, pago_pendiente: false })
     });
   } catch(e) { console.log('Error updating pago', e); }
   closeModal('modal-pago-admin');
