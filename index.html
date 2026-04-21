@@ -1068,7 +1068,9 @@ async function renderDashboard() {
         <div style="font-size:36px;margin-bottom:8px">⏳</div>
         <div style="font-family:var(--font-head);font-size:20px;letter-spacing:2px;color:var(--yellow);margin-bottom:6px">EN ESPERA DE CONFIRMACIÓN</div>
         <div style="font-size:13px;color:var(--muted);line-height:1.6">Tu pago está siendo verificado por el profe.<br>En cuanto lo confirme, vas a tener acceso completo.</div>
-      </div>` : `
+      </div>
+      <button class="btn-primary" style="margin-bottom:16px" onclick="showScreen('pago',document.getElementById('sb-pago'))">💳 Ver datos de pago / Enviar comprobante →</button>
+      ` : `
       <!-- SIN PAGO -->
       <div style="background:rgba(224,82,82,.08);border:1px solid rgba(224,82,82,.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center">
         <div style="font-size:36px;margin-bottom:8px">🔒</div>
