@@ -734,7 +734,11 @@ function showAuthError(msg) {
 
 function showAuthSuccess(msg) {
   const el = document.getElementById('auth-success');
-  el.textContent = msg;
+  el.innerHTML = msg;
+  // If registration success, add WhatsApp button
+  if (msg.includes('comprobante')) {
+    el.innerHTML += `<br><br><a href="https://wa.me/5491100000000?text=Hola!%20Me%20registré%20en%20Semillero%20Academy%20y%20quiero%20enviar%20el%20comprobante%20de%20pago" target="_blank" style="display:inline-block;margin-top:8px;padding:10px 18px;background:#25D366;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px">📱 Enviar comprobante por WhatsApp</a>`;
+  }
   el.style.display = 'block';
 }
 
@@ -858,7 +862,10 @@ async function doRegister() {
   btn.disabled = false; btn.textContent = 'Crear cuenta';
 
   if (error) return showAuthError('Error: ' + error.message);
-  showAuthSuccess('✅ ¡Cuenta creada! Tu acceso queda en espera de confirmación del profe. Te avisaremos cuando esté activo.');
+  showAuthSuccess('✅ ¡Cuenta creada! Para activar tu acceso realizá el pago y enviá el comprobante al profe por WhatsApp. El profe confirmará tu acceso en breve.');
+  // Scroll to top to see the message
+  document.querySelector('.auth-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function doLogout() {
