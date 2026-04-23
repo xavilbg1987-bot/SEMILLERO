@@ -55,7 +55,8 @@ select.input-field{cursor:pointer;}
 /* ── LAYOUT ── */
 .app-layout{display:flex;padding-top:56px;min-height:100vh;}
 .sidebar{width:230px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:16px 12px;position:fixed;top:56px;bottom:0;overflow-y:auto;}
-.main-content{flex:1;margin-left:230px;padding:24px;max-width:920px;}
+.main-content{flex:1;margin-left:230px;margin-right:260px;padding:24px;max-width:920px;}
+.right-panel{width:240px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);padding:16px;position:fixed;top:56px;right:0;bottom:0;overflow-y:auto;}
 
 /* ── SIDEBAR ── */
 .sb-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px;padding:0 4px;}
@@ -190,7 +191,8 @@ select.input-field{cursor:pointer;}
 
 @media(max-width:680px){
   .sidebar{display:none;}
-  .main-content{margin-left:0;padding:16px;}
+  .right-panel{display:none;}
+  .main-content{margin-left:0;margin-right:0;padding:16px;}
   .stats-row{grid-template-columns:1fr 1fr;}
   .info-grid{grid-template-columns:1fr;}
 }
@@ -344,6 +346,11 @@ select.input-field{cursor:pointer;}
       <div class="sb-item" onclick="showScreen('rm',this)" id="sb-rm">🏋️ Mis RM de fuerza</div>
       <div class="sb-label" id="sb-pago-label">Pago</div>
       <div class="sb-item" onclick="showScreen('pago',this)" id="sb-pago">💳 Mi suscripción</div>
+    </aside>
+
+    <!-- RIGHT PANEL -->
+    <aside class="right-panel" id="right-panel">
+      <div id="right-panel-content"></div>
     </aside>
 
     <!-- MAIN -->
@@ -706,6 +713,7 @@ function showApp() {
 
   renderSidebar();
   renderDashboard();
+  renderRightPanel();
 
   // Si no tiene pago activo y no es admin, mostrar pantalla de pago
   if (currentProfile.rol !== 'admin' && !currentProfile.pago_activo) {
@@ -1742,8 +1750,10 @@ async function renderAdmin() {
     }
   } catch(e) { console.log('Error fetching students:', e); }
 
-  const now = new Date();
+  const eliminados = students.filter(s => s.eliminado);
+  students = students.filter(s => !s.eliminado);
 
+  const now = new Date();
   function getStatus(s) {
     if (s.pago_pendiente) return { label:'⏳ Pago enviado', cls:'chip-yellow', key:'pendiente' };
     if (!s.pago_activo || !s.pago_vence) return { label:'🔒 Sin acceso', cls:'chip-red', key:'inactivo' };
@@ -1787,6 +1797,7 @@ async function renderAdmin() {
             ? `<button class="btn-sm danger" onclick="revocarPago('${s.id}','${s.nombre} ${s.apellido}')">🔒 Revocar</button>`
             : `<button class="btn-confirm" onclick="openConfirmarPago('${s.id}','${s.nombre} ${s.apellido}')">✅ Confirmar pago</button>`}
         <button class="btn-view" onclick="verPerfilAlumno('${s.id}')">Ver perfil</button>
+        <button class="btn-sm danger" onclick="eliminarAlumno('${s.id}','${s.nombre} ${s.apellido}')">🗑️</button>
       </div>
     </div>`;
   }
@@ -1823,12 +1834,14 @@ async function renderAdmin() {
       <button class="btn-sm" id="filtro-activo" onclick="filtrarAlumnos('activo')">✅ Activos</button>
       <button class="btn-sm" id="filtro-pendiente" onclick="filtrarAlumnos('pendiente')">⏳ Pendientes</button>
       <button class="btn-sm" id="filtro-inactivo" onclick="filtrarAlumnos('inactivo')">🔒 Inactivos</button>
+      <button class="btn-sm" id="filtro-eliminado" onclick="filtrarAlumnos('eliminado')">🗑️ Eliminados (${eliminados.length})</button>
     </div>
 
     <div id="lista-alumnos">
       ${renderGrupo('Pendientes de confirmación', pendientes, 'var(--yellow)')}
       ${renderGrupo('Activos', activos, 'var(--green)')}
       ${renderGrupo('Inactivos / Vencidos', inactivos, 'var(--red)')}
+      ${eliminados.length > 0 ? renderGrupoEliminados(eliminados) : ''}
     </div>
 
     <!-- MODAL PERFIL ALUMNO -->
@@ -1842,6 +1855,8 @@ async function renderAdmin() {
       </div>
     </div>`;
 
+  window._eliminados = eliminados;
+
   document.getElementById('admin-content').innerHTML = html;
 
   // Store students for filtering
@@ -1849,6 +1864,43 @@ async function renderAdmin() {
   window._getStatus = getStatus;
   window._renderFilaAlumno = renderFilaAlumno;
   window._renderGrupo = renderGrupo;
+}
+
+function renderGrupoEliminados(lista) {
+  if (lista.length === 0) return '';
+  return `
+    <div style="display:flex;align-items:center;gap:10px;margin:18px 0 10px">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--muted)"></div>
+      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px">Eliminados (${lista.length})</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+    ${lista.map(s => `
+      <div class="student-row" style="opacity:.5">
+        <div class="student-avatar" style="padding:0;overflow:hidden;position:relative">
+          <img src="${getFotoUrl(s.id)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--muted);background:var(--border);border-radius:50%">${(s.nombre?.[0]||'')+(s.apellido?.[0]||'')}</div>
+        </div>
+        <div class="student-info">
+          <strong>${s.nombre} ${s.apellido}</strong>
+          <span>${s.email}</span>
+        </div>
+        <span class="chip" style="background:var(--surface);color:var(--muted);border-color:var(--border)">🗑️ Eliminado</span>
+        <button class="btn-sm" onclick="restaurarAlumno('${s.id}','${s.nombre} ${s.apellido}')">↩️ Restaurar</button>
+      </div>`).join('')}`;
+}
+
+async function restaurarAlumno(userId, nombre) {
+  if (!confirm(`¿Restaurar a ${nombre}?`)) return;
+  const session = JSON.parse(localStorage.getItem('sb_session') || '{}');
+  try {
+    await fetch(`${SB_URL}/rest/v1/perfiles?id=eq.${userId}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ eliminado: false })
+    });
+    showToast('✅ Alumno restaurado');
+    renderAdmin();
+  } catch(e) { showToast('⚠️ Error al restaurar'); }
 }
 
 function filtrarAlumnos(filtro) {
@@ -1866,18 +1918,24 @@ function filtrarAlumnos(filtro) {
   const now = new Date();
   let lista;
   if (filtro === 'todos') {
-    const pendientes = students.filter(s => s.pago_pendiente);
-    const activos = students.filter(s => { const st = getStatus(s); return st.key === 'activo'; });
-    const inactivos = students.filter(s => { const st = getStatus(s); return st.key === 'inactivo' && !s.pago_pendiente; });
+    const pendientes = students.filter(s => s.pago_pendiente && !s.eliminado);
+    const activos = students.filter(s => { const st = getStatus(s); return st.key === 'activo' && !s.eliminado; });
+    const inactivos = students.filter(s => { const st = getStatus(s); return st.key === 'inactivo' && !s.pago_pendiente && !s.eliminado; });
+    const eliminados = window._eliminados || [];
     document.getElementById('lista-alumnos').innerHTML =
       renderGrupo('Pendientes de confirmación', pendientes, 'var(--yellow)') +
       renderGrupo('Activos', activos, 'var(--green)') +
-      renderGrupo('Inactivos / Vencidos', inactivos, 'var(--red)');
+      renderGrupo('Inactivos / Vencidos', inactivos, 'var(--red)') +
+      (eliminados.length > 0 ? renderGrupoEliminados(eliminados) : '');
     return;
   }
-  if (filtro === 'pendiente') lista = students.filter(s => s.pago_pendiente);
-  else if (filtro === 'activo') lista = students.filter(s => getStatus(s).key === 'activo');
-  else lista = students.filter(s => getStatus(s).key === 'inactivo' && !s.pago_pendiente);
+  if (filtro === 'eliminado') {
+    document.getElementById('lista-alumnos').innerHTML = renderGrupoEliminados(window._eliminados || []);
+    return;
+  }
+  if (filtro === 'pendiente') lista = students.filter(s => s.pago_pendiente && !s.eliminado);
+  else if (filtro === 'activo') lista = students.filter(s => getStatus(s).key === 'activo' && !s.eliminado);
+  else lista = students.filter(s => getStatus(s).key === 'inactivo' && !s.pago_pendiente && !s.eliminado);
 
   document.getElementById('lista-alumnos').innerHTML = lista.length
     ? lista.map(renderFilaAlumno).join('')
@@ -1898,7 +1956,94 @@ async function rechazarPago(userId) {
   } catch(e) { showToast('⚠️ Error'); }
 }
 
-function exportarExcel() {
+// ══ RIGHT PANEL ══
+function renderRightPanel() {
+  const config = JSON.parse(localStorage.getItem('semillero_rightpanel') || '{}');
+  const isAdmin = currentProfile?.rol === 'admin';
+  
+  document.getElementById('right-panel-content').innerHTML = `
+    ${isAdmin ? `
+    <div style="margin-bottom:16px">
+      <button class="btn-sm" style="width:100%;padding:8px;font-size:11px" onclick="editarRightPanel()">✏️ Editar panel</button>
+    </div>` : ''}
+    
+    ${config.imagen ? `<img src="${config.imagen}" style="width:100%;border-radius:12px;margin-bottom:12px;object-fit:cover;max-height:180px">` : ''}
+    
+    <div style="font-family:var(--font-head);font-size:18px;letter-spacing:2px;color:var(--green);margin-bottom:4px">${config.titulo || 'SEMILLERO ACADEMY'}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">${config.descripcion || 'Entrenamiento de alto rendimiento para jóvenes futbolistas.'}</div>
+    
+    ${config.instagram ? `<a href="https://instagram.com/${config.instagram}" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(155,106,232,.1);border:1px solid rgba(155,106,232,.2);border-radius:10px;text-decoration:none;color:var(--purple);font-size:12px;font-weight:700;margin-bottom:8px">📸 @${config.instagram}</a>` : ''}
+    ${config.telefono ? `<a href="https://wa.me/${config.telefono}" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.2);border-radius:10px;text-decoration:none;color:#25D366;font-size:12px;font-weight:700;margin-bottom:8px">📱 ${config.telefono}</a>` : ''}
+    ${config.email ? `<a href="mailto:${config.email}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(74,158,232,.1);border:1px solid rgba(74,158,232,.2);border-radius:10px;text-decoration:none;color:var(--blue);font-size:12px;font-weight:700;margin-bottom:8px">✉️ ${config.email}</a>` : ''}
+    
+    ${config.sponsor_img ? `
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Sponsors</div>
+      <img src="${config.sponsor_img}" style="width:100%;border-radius:8px;object-fit:contain;max-height:80px">
+    </div>` : ''}`;
+}
+
+function editarRightPanel() {
+  const config = JSON.parse(localStorage.getItem('semillero_rightpanel') || '{}');
+  const modal = document.createElement('div');
+  modal.className = 'overlay open';
+  modal.id = 'modal-right-panel';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:440px">
+      <div class="modal-top">
+        <h3>✏️ Editar panel lateral</h3>
+        <button class="modal-close" onclick="document.getElementById('modal-right-panel').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="input-label">Título</div>
+        <input class="input-field" id="rp-titulo" value="${config.titulo||''}">
+        <div class="input-label">Descripción</div>
+        <textarea class="input-field" id="rp-desc" rows="3" style="resize:none">${config.descripcion||''}</textarea>
+        <div class="input-label">Instagram (sin @)</div>
+        <input class="input-field" id="rp-ig" value="${config.instagram||''}">
+        <div class="input-label">WhatsApp / Teléfono</div>
+        <input class="input-field" id="rp-tel" value="${config.telefono||''}" placeholder="ej. 5491123456789">
+        <div class="input-label">Email</div>
+        <input class="input-field" id="rp-email" value="${config.email||''}">
+        <div class="input-label">Link imagen/foto (URL)</div>
+        <input class="input-field" id="rp-img" value="${config.imagen||''}" placeholder="https://...">
+        <div class="input-label">Link imagen sponsor (URL)</div>
+        <input class="input-field" id="rp-sponsor" value="${config.sponsor_img||''}" placeholder="https://...">
+        <button class="btn-primary" onclick="guardarRightPanel()">✅ Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function guardarRightPanel() {
+  const config = {
+    titulo: document.getElementById('rp-titulo').value.trim(),
+    descripcion: document.getElementById('rp-desc').value.trim(),
+    instagram: document.getElementById('rp-ig').value.trim().replace('@',''),
+    telefono: document.getElementById('rp-tel').value.trim(),
+    email: document.getElementById('rp-email').value.trim(),
+    imagen: document.getElementById('rp-img').value.trim(),
+    sponsor_img: document.getElementById('rp-sponsor').value.trim(),
+  };
+  localStorage.setItem('semillero_rightpanel', JSON.stringify(config));
+  document.getElementById('modal-right-panel').remove();
+  renderRightPanel();
+  showToast('✅ Panel actualizado');
+}
+
+async function eliminarAlumno(userId, nombre) {
+  if (!confirm(`¿Eliminar a ${nombre}? Esta acción no se puede deshacer.`)) return;
+  const session = JSON.parse(localStorage.getItem('sb_session') || '{}');
+  try {
+    await fetch(`${SB_URL}/rest/v1/perfiles?id=eq.${userId}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ eliminado: true })
+    });
+    showToast('🗑️ Alumno eliminado');
+    renderAdmin();
+  } catch(e) { showToast('⚠️ Error al eliminar'); }
+}
   const students = window._adminStudents || [];
   if (students.length === 0) return showToast('⚠️ No hay alumnos para exportar');
 
