@@ -1144,8 +1144,23 @@ function nsInit() {
   _nsData = {};
   ['dia1','dia2','dia3'].forEach(dia => {
     _nsData[dia] = {};
-    SECCIONES.forEach(sec => { _nsData[dia][sec.id] = { texto: '', link: '' }; });
+    SECCIONES.forEach(sec => {
+      _nsData[dia][sec.id] = {
+        titulo: '',
+        filas: Array.from({length:5}, () => ({ nombre:'', reps:'', link:'' }))
+      };
+    });
   });
+}
+
+function nsGetVal(dia, sec, fila, col) {
+  return _nsData[dia]?.[sec]?.filas?.[fila]?.[col] || '';
+}
+
+function nsSetVal(dia, sec, fila, col, val) {
+  if (!_nsData[dia]) _nsData[dia] = {};
+  if (!_nsData[dia][sec]) _nsData[dia][sec] = { titulo:'', filas: Array.from({length:5}, () => ({nombre:'',reps:'',link:''})) };
+  _nsData[dia][sec].filas[fila][col] = val;
 }
 
 function nsRenderTabla() {
@@ -1153,16 +1168,36 @@ function nsRenderTabla() {
   if (!tbody) return;
   tbody.innerHTML = SECCIONES.map(sec => `
     <tr>
-      <td style="padding:8px;background:${sec.color}10;border:1px solid var(--border);vertical-align:top">
+      <td style="padding:8px;background:${sec.color}10;border:1px solid var(--border);vertical-align:middle;min-width:80px">
         <div style="font-size:12px;font-weight:700;color:${sec.color}">${sec.icon} ${sec.label}</div>
       </td>
       ${['dia1','dia2','dia3'].map(dia => `
         <td style="padding:6px;border:1px solid var(--border);vertical-align:top">
-          <textarea
-            style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:var(--font-body);font-size:12px;resize:vertical;min-height:80px;box-sizing:border-box"
-            placeholder="Ejercicio | Reps | Link&#10;ej: Sentadilla | 4x12 | https://..."
-            oninput="_nsData['${dia}']['${sec.id}'].texto=this.value"
-          >${(_nsData[dia]?.[sec.id]?.texto)||''}</textarea>
+          <!-- TÍTULO -->
+          <input
+            style="width:100%;background:${sec.color}15;border:1px solid ${sec.color}40;border-radius:6px;padding:6px 8px;color:var(--text);font-family:var(--font-body);font-size:12px;font-weight:700;margin-bottom:6px;box-sizing:border-box"
+            placeholder="ej: 4 rondas"
+            value="${(_nsData[dia]?.[sec.id]?.titulo)||''}"
+            oninput="_nsData['${dia}']['${sec.id}'].titulo=this.value"
+          >
+          <!-- MINI TABLA: 5 filas x 3 columnas -->
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:45%">EJERCICIO</th>
+                <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:25%">REPS</th>
+                <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:30%">LINK</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Array.from({length:5}, (_,i) => `
+                <tr>
+                  <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="Ejercicio" value="${nsGetVal('${dia}','${sec.id}',${i},'nombre')}" oninput="nsSetVal('${dia}','${sec.id}',${i},'nombre',this.value)"></td>
+                  <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="ej: 4x12" value="${nsGetVal('${dia}','${sec.id}',${i},'reps')}" oninput="nsSetVal('${dia}','${sec.id}',${i},'reps',this.value)"></td>
+                  <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="URL" value="${nsGetVal('${dia}','${sec.id}',${i},'link')}" oninput="nsSetVal('${dia}','${sec.id}',${i},'link',this.value)"></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
         </td>`).join('')}
     </tr>`).join('');
 }
@@ -1188,23 +1223,17 @@ function editarSemana(cat, semanaId) {
   document.getElementById('ns-nombre').value = semana.nombre;
   document.getElementById('ns-edit-id').value = semanaId;
   nsInit();
-  // Load existing data - convert old format to new simple format
+  // Load existing data into new format
   semana.dias.forEach(dia => {
     SECCIONES.forEach(sec => {
       const ejercicios = dia.secciones[sec.id] || [];
-      if (ejercicios.length > 0) {
-        if (typeof ejercicios[0] === 'string') {
-          _nsData[dia.id][sec.id].texto = ejercicios.join('\n');
-        } else {
-          _nsData[dia.id][sec.id].texto = ejercicios.map(e => {
-            const parts = [e.nombre || e.texto || ''];
-            if (e.series && e.reps) parts.push(`${e.series}x${e.reps}`);
-            else if (e.reps) parts.push(e.reps);
-            if (e.link) parts.push(e.link);
-            return parts.filter(Boolean).join(' | ');
-          }).join('\n');
+      const titulo = ejercicios[0]?._titulo || ejercicios[0]?.titulo || '';
+      _nsData[dia.id][sec.id].titulo = titulo;
+      ejercicios.filter(e => e.nombre).forEach((e, i) => {
+        if (i < 5) {
+          _nsData[dia.id][sec.id].filas[i] = { nombre: e.nombre||'', reps: e.reps||'', link: e.link||'' };
         }
-      }
+      });
     });
   });
   nsRenderTabla();
@@ -1230,11 +1259,18 @@ function guardarSemana() {
 
   semana.dias.forEach(dia => {
     SECCIONES.forEach(sec => {
-      const texto = (_nsData[dia.id]?.[sec.id]?.texto || '').trim();
-      dia.secciones[sec.id] = texto.split('\n').filter(l => l.trim()).map(linea => {
-        const p = linea.split('|').map(x => x.trim());
-        return { nombre: p[0]||'', reps: p[1]||'', link: p[2]||'' };
-      });
+      const d = _nsData[dia.id]?.[sec.id];
+      const titulo = d?.titulo || '';
+      const filas = d?.filas || [];
+      dia.secciones[sec.id] = filas
+        .filter(f => f.nombre.trim())
+        .map(f => ({ nombre: f.nombre, reps: f.reps, link: f.link, titulo }));
+      // Store titulo on first item or as separate field
+      if (dia.secciones[sec.id].length > 0) {
+        dia.secciones[sec.id][0]._titulo = titulo;
+      } else if (titulo) {
+        dia.secciones[sec.id] = [{ nombre:'', reps:'', link:'', _titulo: titulo }];
+      }
     });
   });
 
@@ -1309,27 +1345,39 @@ function showSemana(cat, semanaId) {
           <div style="padding:12px 16px">
             ${ejercicios.length === 0
               ? `<div style="font-size:12px;color:var(--muted);padding:8px 0;text-align:center">Sin ejercicios cargados aún</div>`
-              : ejercicios.map((ej, ejIdx) => {
-                  const nombre = ej.nombre || ej.texto || '';
-                  const reps = ej.reps || '';
-                  const link = ej.link || '';
-                  const isYoutube = link.includes('youtube.com') || link.includes('youtu.be');
-                  const isGif = link.match(/\.gif/i) || link.includes('giphy.com') || link.includes('tenor.com') || link.includes('imgur.com');
-                  const videoId = isYoutube ? (link.match(/(?:v=|youtu\.be\/)([^&?]+)/)||[])[1] : null;
-                  const mediaHtml = !link ? '' :
-                    isYoutube && videoId ? `<div style="margin-top:8px;border-radius:10px;overflow:hidden;aspect-ratio:16/9"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe></div>` :
-                    isGif ? `<img src="${link}" style="width:100%;border-radius:10px;margin-top:8px;max-height:200px;object-fit:cover" onerror="this.style.display='none'">` :
-                    `<a href="${link}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:6px 12px;background:rgba(74,158,232,.1);border:1px solid rgba(74,158,232,.3);border-radius:8px;text-decoration:none;color:var(--blue);font-size:11px;font-weight:700">▶ Ver video/GIF</a>`;
+              : (() => {
+                  const titulo = ejercicios[0]?._titulo || ejercicios[0]?.titulo || '';
+                  const items = ejercicios.filter(e => e.nombre);
                   return `
-                <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);${ejIdx===ejercicios.length-1?'border-bottom:none':''}">
-                  <div style="width:24px;height:24px;border-radius:6px;background:${sec.color}20;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${sec.color};flex-shrink:0">${ejIdx+1}</div>
-                  <div style="flex:1">
-                    <div style="font-size:13px;font-weight:700">${nombre}</div>
-                    ${reps ? `<div style="font-size:12px;color:${sec.color};font-weight:700">${reps}</div>` : ''}
-                    ${mediaHtml}
-                  </div>
-                </div>`;
-                }).join('')}
+                  ${titulo ? `<div style="font-size:12px;font-weight:700;color:${sec.color};background:${sec.color}15;border-radius:6px;padding:6px 10px;margin-bottom:8px">${titulo}</div>` : ''}
+                  <table style="width:100%;border-collapse:collapse">
+                    <thead>
+                      <tr>
+                        <th style="font-size:10px;color:var(--muted);font-weight:700;text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">#</th>
+                        <th style="font-size:10px;color:var(--muted);font-weight:700;text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">EJERCICIO</th>
+                        <th style="font-size:10px;color:var(--muted);font-weight:700;text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">REPS</th>
+                        <th style="font-size:10px;color:var(--muted);font-weight:700;text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">VIDEO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${items.map((ej, ejIdx) => {
+                        const link = ej.link || '';
+                        const isYoutube = link.includes('youtube.com') || link.includes('youtu.be');
+                        const isGif = link.match(/\.gif/i) || link.includes('giphy.com') || link.includes('tenor.com') || link.includes('imgur.com');
+                        const videoId = isYoutube ? (link.match(/(?:v=|youtu\.be\/)([^&?]+)/)||[])[1] : null;
+                        const linkHtml = !link ? '–' :
+                          isYoutube && videoId ? `<a href="https://www.youtube.com/watch?v=${videoId}" target="_blank" style="color:var(--blue);font-size:11px;font-weight:700;text-decoration:none">▶ Ver</a>` :
+                          `<a href="${link}" target="_blank" style="color:var(--blue);font-size:11px;font-weight:700;text-decoration:none">▶ Ver</a>`;
+                        return `<tr style="border-bottom:1px solid var(--border)">
+                          <td style="padding:6px;font-size:11px;color:var(--muted)">${ejIdx+1}</td>
+                          <td style="padding:6px;font-size:13px;font-weight:700">${ej.nombre}</td>
+                          <td style="padding:6px;font-size:12px;color:${sec.color};font-weight:700">${ej.reps||'–'}</td>
+                          <td style="padding:6px">${linkHtml}</td>
+                        </tr>`;
+                      }).join('')}
+                    </tbody>
+                  </table>`;
+                })()}
           </div>
         </div>`;
     });
