@@ -1153,53 +1153,68 @@ function nsInit() {
   });
 }
 
-function nsGetVal(dia, sec, fila, col) {
-  return _nsData[dia]?.[sec]?.filas?.[fila]?.[col] || '';
-}
-
-function nsSetVal(dia, sec, fila, col, val) {
-  if (!_nsData[dia]) _nsData[dia] = {};
-  if (!_nsData[dia][sec]) _nsData[dia][sec] = { titulo:'', filas: Array.from({length:5}, () => ({nombre:'',reps:'',link:''})) };
-  _nsData[dia][sec].filas[fila][col] = val;
-}
-
 function nsRenderTabla() {
   const tbody = document.getElementById('ns-tabla-body');
   if (!tbody) return;
-  tbody.innerHTML = SECCIONES.map(sec => `
-    <tr>
+
+  let html = '';
+  SECCIONES.forEach(sec => {
+    html += `<tr>
       <td style="padding:8px;background:${sec.color}10;border:1px solid var(--border);vertical-align:middle;min-width:80px">
         <div style="font-size:12px;font-weight:700;color:${sec.color}">${sec.icon} ${sec.label}</div>
-      </td>
-      ${['dia1','dia2','dia3'].map(dia => `
-        <td style="padding:6px;border:1px solid var(--border);vertical-align:top">
-          <!-- TÍTULO -->
-          <input
-            style="width:100%;background:${sec.color}15;border:1px solid ${sec.color}40;border-radius:6px;padding:6px 8px;color:var(--text);font-family:var(--font-body);font-size:12px;font-weight:700;margin-bottom:6px;box-sizing:border-box"
-            placeholder="ej: 4 rondas"
-            value="${(_nsData[dia]?.[sec.id]?.titulo)||''}"
-            oninput="_nsData['${dia}']['${sec.id}'].titulo=this.value"
-          >
-          <!-- MINI TABLA: 5 filas x 3 columnas -->
-          <table style="width:100%;border-collapse:collapse">
-            <thead>
-              <tr>
-                <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:45%">EJERCICIO</th>
-                <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:25%">REPS</th>
-                <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:30%">LINK</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${Array.from({length:5}, (_,i) => `
-                <tr>
-                  <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="Ejercicio" value="${nsGetVal('${dia}','${sec.id}',${i},'nombre')}" oninput="nsSetVal('${dia}','${sec.id}',${i},'nombre',this.value)"></td>
-                  <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="ej: 4x12" value="${nsGetVal('${dia}','${sec.id}',${i},'reps')}" oninput="nsSetVal('${dia}','${sec.id}',${i},'reps',this.value)"></td>
-                  <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="URL" value="${nsGetVal('${dia}','${sec.id}',${i},'link')}" oninput="nsSetVal('${dia}','${sec.id}',${i},'link',this.value)"></td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </td>`).join('')}
-    </tr>`).join('');
+      </td>`;
+
+    ['dia1','dia2','dia3'].forEach(dia => {
+      const titulo = _nsData[dia]?.[sec.id]?.titulo || '';
+      const filas = _nsData[dia]?.[sec.id]?.filas || Array.from({length:5}, () => ({nombre:'',reps:'',link:''}));
+
+      html += `<td style="padding:6px;border:1px solid var(--border);vertical-align:top">
+        <input
+          style="width:100%;background:${sec.color}15;border:1px solid ${sec.color}40;border-radius:6px;padding:6px 8px;color:var(--text);font-family:var(--font-body);font-size:12px;font-weight:700;margin-bottom:6px;box-sizing:border-box"
+          placeholder="ej: 4 rondas"
+          data-dia="${dia}" data-sec="${sec.id}" data-field="titulo"
+          value="${titulo.replace(/"/g,'&quot;')}"
+          oninput="nsSetTitulo(this)"
+        >
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:42%">EJERCICIO</th>
+            <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:22%">REPS</th>
+            <th style="font-size:9px;color:var(--muted);font-weight:700;text-align:left;padding:2px 4px;border-bottom:1px solid var(--border);width:36%">LINK</th>
+          </tr></thead>
+          <tbody>`;
+
+      for (let i = 0; i < 5; i++) {
+        const f = filas[i] || {nombre:'',reps:'',link:''};
+        html += `<tr>
+          <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 5px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="Ejercicio" value="${(f.nombre||'').replace(/"/g,'&quot;')}" data-dia="${dia}" data-sec="${sec.id}" data-fila="${i}" data-col="nombre" oninput="nsSetFila(this)"></td>
+          <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 5px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="4x12" value="${(f.reps||'').replace(/"/g,'&quot;')}" data-dia="${dia}" data-sec="${sec.id}" data-fila="${i}" data-col="reps" oninput="nsSetFila(this)"></td>
+          <td style="padding:2px"><input style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 5px;color:var(--text);font-size:11px;box-sizing:border-box" placeholder="URL" value="${(f.link||'').replace(/"/g,'&quot;')}" data-dia="${dia}" data-sec="${sec.id}" data-fila="${i}" data-col="link" oninput="nsSetFila(this)"></td>
+        </tr>`;
+      }
+
+      html += `</tbody></table></td>`;
+    });
+
+    html += `</tr>`;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function nsSetTitulo(el) {
+  const {dia, sec} = el.dataset;
+  if (!_nsData[dia]) _nsData[dia] = {};
+  if (!_nsData[dia][sec]) _nsData[dia][sec] = { titulo:'', filas: Array.from({length:5}, () => ({nombre:'',reps:'',link:''})) };
+  _nsData[dia][sec].titulo = el.value;
+}
+
+function nsSetFila(el) {
+  const {dia, sec, fila, col} = el.dataset;
+  if (!_nsData[dia]) _nsData[dia] = {};
+  if (!_nsData[dia][sec]) _nsData[dia][sec] = { titulo:'', filas: Array.from({length:5}, () => ({nombre:'',reps:'',link:''})) };
+  if (!_nsData[dia][sec].filas[fila]) _nsData[dia][sec].filas[fila] = {nombre:'',reps:'',link:''};
+  _nsData[dia][sec].filas[parseInt(fila)][col] = el.value;
 }
 
 function cerrarModalSemana() {
