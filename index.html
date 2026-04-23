@@ -2044,6 +2044,8 @@ async function eliminarAlumno(userId, nombre) {
     renderAdmin();
   } catch(e) { showToast('⚠️ Error al eliminar'); }
 }
+
+function exportarExcel() {
   const students = window._adminStudents || [];
   if (students.length === 0) return showToast('⚠️ No hay alumnos para exportar');
 
