@@ -413,9 +413,11 @@ select.input-field{cursor:pointer;}
       <h3>📝 Cargar semana de entrenamiento</h3>
       <button class="modal-close" onclick="cerrarModalSemana()">✕</button>
     </div>
-    <div class="modal-body" style="flex:1;overflow-y:auto">
+    <div class="modal-body" style="flex:1;overflow-y:auto;padding:16px">
       <input type="hidden" id="ns-edit-id" value="">
-      <div class="form-row form-row-wrap" style="margin-bottom:14px">
+
+      <!-- CABECERA: Categoría + Nombre -->
+      <div class="form-row form-row-wrap" style="margin-bottom:16px">
         <div>
           <div class="input-label">Categoría</div>
           <select class="input-field" id="ns-cat">
@@ -431,29 +433,22 @@ select.input-field{cursor:pointer;}
         </div>
       </div>
 
-      <!-- TABS DE DÍAS -->
-      <div style="display:flex;gap:6px;margin-bottom:16px">
-        <button id="tab-ns-dia1" class="btn-sm" onclick="switchNsDia('dia1')" style="flex:1;padding:10px;border-color:var(--green);color:var(--green)">Día 1</button>
-        <button id="tab-ns-dia2" class="btn-sm" onclick="switchNsDia('dia2')" style="flex:1;padding:10px">Día 2</button>
-        <button id="tab-ns-dia3" class="btn-sm" onclick="switchNsDia('dia3')" style="flex:1;padding:10px">Día 3</button>
+      <!-- TABLA: 3 días x 5 secciones -->
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:500px">
+          <thead>
+            <tr>
+              <th style="width:90px;padding:8px;background:var(--card);border:1px solid var(--border);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Sección</th>
+              <th style="padding:8px;background:rgba(61,186,111,.15);border:1px solid var(--border);font-family:var(--font-head);font-size:14px;letter-spacing:2px;color:var(--green)">DÍA 1</th>
+              <th style="padding:8px;background:rgba(74,158,232,.15);border:1px solid var(--border);font-family:var(--font-head);font-size:14px;letter-spacing:2px;color:var(--blue)">DÍA 2</th>
+              <th style="padding:8px;background:rgba(155,106,232,.15);border:1px solid var(--border);font-family:var(--font-head);font-size:14px;letter-spacing:2px;color:var(--purple)">DÍA 3</th>
+            </tr>
+          </thead>
+          <tbody id="ns-tabla-body"></tbody>
+        </table>
       </div>
 
-      <!-- CONTENIDO DE CADA DÍA -->
-      <div id="ns-panel-dia1">
-        ${SECCIONES ? SECCIONES.map(sec => `
-          <div style="margin-bottom:16px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:10px 12px;background:${sec.color}15;border-radius:10px;border:1px solid ${sec.color}30">
-              <span style="font-size:16px">${sec.icon}</span>
-              <span style="font-family:var(--font-head);font-size:14px;letter-spacing:1px;color:${sec.color}">${sec.label.toUpperCase()}</span>
-            </div>
-            <div id="ns-lista-dia1-${sec.id}" style="margin-bottom:6px"></div>
-            <button class="btn-sm" style="width:100%;padding:8px;border-style:dashed;font-size:11px" onclick="nsAgregarEjercicio('dia1','${sec.id}')">➕ Agregar ejercicio</button>
-          </div>`).join('') : ''}
-      </div>
-      <div id="ns-panel-dia2" style="display:none"></div>
-      <div id="ns-panel-dia3" style="display:none"></div>
-
-      <button class="btn-primary" style="margin-top:8px;position:sticky;bottom:0" onclick="guardarSemana()">✅ Guardar semana completa</button>
+      <button class="btn-primary" style="margin-top:16px" onclick="guardarSemana()">✅ Guardar semana completa</button>
     </div>
   </div>
 </div>
@@ -595,11 +590,11 @@ let pendingPaymentUserId = null;
 // Cada sección tiene ejercicios: { nombre, reps, link }
 
 const SECCIONES = [
-  { id:'movilidad',       icon:'🔄', label:'Movilidad',          color:'var(--green)' },
-  { id:'zona_media',      icon:'⚙️', label:'Zona Media',         color:'var(--blue)' },
-  { id:'fuerza',          icon:'💪', label:'Fuerza',             color:'var(--yellow)' },
-  { id:'fuerza_potencia', icon:'⚡', label:'Fuerza y Potencia',  color:'var(--purple)' },
-  { id:'pliometria',      icon:'🚀', label:'Pliometría',         color:'var(--red)' },
+  { id:'movilidad',      icon:'🔄', label:'Movilidad',            color:'var(--green)' },
+  { id:'zona_media',     icon:'⚙️', label:'Zona Media',           color:'var(--blue)' },
+  { id:'fuerza',         icon:'💪', label:'Fuerza',               color:'var(--yellow)' },
+  { id:'potencia',       icon:'🚀', label:'Potencia / Pliometría', color:'var(--purple)' },
+  { id:'calma',          icon:'🧘', label:'Vuelta a la Calma',     color:'var(--muted)' },
 ];
 
 const DIAS = ['Día 1', 'Día 2', 'Día 3'];
@@ -1142,82 +1137,34 @@ async function borrarMensaje() {
     showToast('🗑️ Mensaje eliminado');
     renderDashboard();
   } catch(e) { showToast('⚠️ Error al borrar'); }
-}// ══ NUEVA SEMANA - MODAL COMPLETO ══
-let _nsData = {}; // { dia1: { movilidad: [], zona_media: [], ... }, dia2: {...}, dia3: {...} }
+}// ══ NUEVA SEMANA - TABLA SIMPLE ══
+let _nsData = {};
 
 function nsInit() {
   _nsData = {};
   ['dia1','dia2','dia3'].forEach(dia => {
     _nsData[dia] = {};
-    SECCIONES.forEach(sec => { _nsData[dia][sec.id] = []; });
+    SECCIONES.forEach(sec => { _nsData[dia][sec.id] = { texto: '', link: '' }; });
   });
 }
 
-function nsAgregarEjercicio(diaId, secId) {
-  if (!_nsData[diaId]) _nsData[diaId] = {};
-  if (!_nsData[diaId][secId]) _nsData[diaId][secId] = [];
-  _nsData[diaId][secId].push({ nombre:'', series:'', reps:'', carga_tipo:'rm', carga_valor:'', descanso:'', link:'' });
-  nsRenderDia(diaId);
-}
-
-function nsEliminarEjercicio(diaId, secId, idx) {
-  _nsData[diaId][secId].splice(idx, 1);
-  nsRenderDia(diaId);
-}
-
-function nsUpdate(diaId, secId, idx, field, value) {
-  if (_nsData[diaId] && _nsData[diaId][secId] && _nsData[diaId][secId][idx] !== undefined) {
-    _nsData[diaId][secId][idx][field] = value;
-  }
-}
-
-function nsRenderDia(diaId) {
-  const panel = document.getElementById('ns-panel-' + diaId);
-  if (!panel) return;
-  panel.innerHTML = SECCIONES.map(sec => {
-    const ejercicios = (_nsData[diaId] && _nsData[diaId][sec.id]) || [];
-    return `
-      <div style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:10px 12px;background:${sec.color}15;border-radius:10px;border:1px solid ${sec.color}30">
-          <span style="font-size:16px">${sec.icon}</span>
-          <span style="font-family:var(--font-head);font-size:14px;letter-spacing:1px;color:${sec.color}">${sec.label.toUpperCase()}</span>
-          <span style="margin-left:auto;font-size:11px;color:var(--muted)">${ejercicios.length} ejercicio${ejercicios.length!==1?'s':''}</span>
-        </div>
-        ${ejercicios.map((ej, i) => `
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span style="font-size:11px;font-weight:700;color:var(--muted)">${sec.label} · Ejercicio ${i+1}</span>
-              <button onclick="nsEliminarEjercicio('${diaId}','${sec.id}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">✕</button>
-            </div>
-            <input class="input-field" style="margin-bottom:6px" placeholder="Nombre del ejercicio" value="${ej.nombre}" oninput="nsUpdate('${diaId}','${sec.id}',${i},'nombre',this.value)">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
-              <input class="input-field" style="margin-bottom:0" placeholder="Series (ej: 4)" value="${ej.series}" oninput="nsUpdate('${diaId}','${sec.id}',${i},'series',this.value)">
-              <input class="input-field" style="margin-bottom:0" placeholder="Reps (ej: 6)" value="${ej.reps}" oninput="nsUpdate('${diaId}','${sec.id}',${i},'reps',this.value)">
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
-              <select class="input-field" style="margin-bottom:0" onchange="nsUpdate('${diaId}','${sec.id}',${i},'carga_tipo',this.value)">
-                <option value="rm" ${ej.carga_tipo==='rm'?'selected':''}>% RM</option>
-                <option value="kg" ${ej.carga_tipo==='kg'?'selected':''}>Kg fijo</option>
-                <option value="pc" ${ej.carga_tipo==='pc'?'selected':''}>Peso corp.</option>
-                <option value="none" ${ej.carga_tipo==='none'?'selected':''}>Sin carga</option>
-              </select>
-              <input class="input-field" style="margin-bottom:0" placeholder="Valor" value="${ej.carga_valor}" oninput="nsUpdate('${diaId}','${sec.id}',${i},'carga_valor',this.value)">
-              <input class="input-field" style="margin-bottom:0" placeholder="Descanso" value="${ej.descanso}" oninput="nsUpdate('${diaId}','${sec.id}',${i},'descanso',this.value)">
-            </div>
-            <input class="input-field" style="margin-bottom:0" placeholder="Link GIF / video" value="${ej.link}" oninput="nsUpdate('${diaId}','${sec.id}',${i},'link',this.value)">
-          </div>`).join('')}
-        <button class="btn-sm" style="width:100%;padding:8px;border-style:dashed;font-size:11px" onclick="nsAgregarEjercicio('${diaId}','${sec.id}')">➕ Agregar ejercicio en ${sec.label}</button>
-      </div>`;
-  }).join('');
-}
-
-function switchNsDia(diaId) {
-  ['dia1','dia2','dia3'].forEach(d => {
-    document.getElementById('ns-panel-' + d).style.display = d === diaId ? 'block' : 'none';
-    const tab = document.getElementById('tab-ns-' + d);
-    if (tab) { tab.style.borderColor = d===diaId?'var(--green)':''; tab.style.color = d===diaId?'var(--green)':''; }
-  });
-  nsRenderDia(diaId);
+function nsRenderTabla() {
+  const tbody = document.getElementById('ns-tabla-body');
+  if (!tbody) return;
+  tbody.innerHTML = SECCIONES.map(sec => `
+    <tr>
+      <td style="padding:8px;background:${sec.color}10;border:1px solid var(--border);vertical-align:top">
+        <div style="font-size:12px;font-weight:700;color:${sec.color}">${sec.icon} ${sec.label}</div>
+      </td>
+      ${['dia1','dia2','dia3'].map(dia => `
+        <td style="padding:6px;border:1px solid var(--border);vertical-align:top">
+          <textarea
+            style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:var(--font-body);font-size:12px;resize:vertical;min-height:80px;box-sizing:border-box"
+            placeholder="Ejercicio | Reps | Link&#10;ej: Sentadilla | 4x12 | https://..."
+            oninput="_nsData['${dia}']['${sec.id}'].texto=this.value"
+          >${(_nsData[dia]?.[sec.id]?.texto)||''}</textarea>
+        </td>`).join('')}
+    </tr>`).join('');
 }
 
 function cerrarModalSemana() {
@@ -1230,7 +1177,7 @@ function abrirNuevaSemana(cat) {
   document.getElementById('ns-nombre').value = '';
   document.getElementById('ns-edit-id').value = '';
   nsInit();
-  switchNsDia('dia1');
+  nsRenderTabla();
   document.getElementById('modal-semana').classList.add('open');
 }
 
@@ -1240,14 +1187,27 @@ function editarSemana(cat, semanaId) {
   document.getElementById('ns-cat').value = cat;
   document.getElementById('ns-nombre').value = semana.nombre;
   document.getElementById('ns-edit-id').value = semanaId;
-  // Load existing data
   nsInit();
+  // Load existing data - convert old format to new simple format
   semana.dias.forEach(dia => {
     SECCIONES.forEach(sec => {
-      _nsData[dia.id][sec.id] = (dia.secciones[sec.id] || []).map(e => ({...e}));
+      const ejercicios = dia.secciones[sec.id] || [];
+      if (ejercicios.length > 0) {
+        if (typeof ejercicios[0] === 'string') {
+          _nsData[dia.id][sec.id].texto = ejercicios.join('\n');
+        } else {
+          _nsData[dia.id][sec.id].texto = ejercicios.map(e => {
+            const parts = [e.nombre || e.texto || ''];
+            if (e.series && e.reps) parts.push(`${e.series}x${e.reps}`);
+            else if (e.reps) parts.push(e.reps);
+            if (e.link) parts.push(e.link);
+            return parts.filter(Boolean).join(' | ');
+          }).join('\n');
+        }
+      }
     });
   });
-  switchNsDia('dia1');
+  nsRenderTabla();
   document.getElementById('modal-semana').classList.add('open');
 }
 
@@ -1270,7 +1230,11 @@ function guardarSemana() {
 
   semana.dias.forEach(dia => {
     SECCIONES.forEach(sec => {
-      dia.secciones[sec.id] = (_nsData[dia.id]?.[sec.id] || []).filter(e => e.nombre.trim());
+      const texto = (_nsData[dia.id]?.[sec.id]?.texto || '').trim();
+      dia.secciones[sec.id] = texto.split('\n').filter(l => l.trim()).map(linea => {
+        const p = linea.split('|').map(x => x.trim());
+        return { nombre: p[0]||'', reps: p[1]||'', link: p[2]||'' };
+      });
     });
   });
 
@@ -1278,7 +1242,7 @@ function guardarSemana() {
   cerrarModalSemana();
   renderSidebar();
   showSemana(cat, semana.id);
-  showToast('✅ Semana guardada completa');
+  showToast('✅ Semana guardada');
 }
 
 function showSemana(cat, semanaId) {
@@ -1346,28 +1310,23 @@ function showSemana(cat, semanaId) {
             ${ejercicios.length === 0
               ? `<div style="font-size:12px;color:var(--muted);padding:8px 0;text-align:center">Sin ejercicios cargados aún</div>`
               : ejercicios.map((ej, ejIdx) => {
-                  const cargaLabel = ej.carga_tipo === 'rm' && ej.carga_valor ? ej.carga_valor+'% RM' :
-                                     ej.carga_tipo === 'kg' && ej.carga_valor ? ej.carga_valor+' kg' :
-                                     ej.carga_tipo === 'pc' ? 'Peso corporal' : '';
-                  const seriesReps = [ej.series && ej.reps ? ej.series+' × '+ej.reps : (ej.series||ej.reps||''), cargaLabel].filter(Boolean).join(' · ');
+                  const nombre = ej.nombre || ej.texto || '';
+                  const reps = ej.reps || '';
                   const link = ej.link || '';
                   const isYoutube = link.includes('youtube.com') || link.includes('youtu.be');
                   const isGif = link.match(/\.gif/i) || link.includes('giphy.com') || link.includes('tenor.com') || link.includes('imgur.com');
                   const videoId = isYoutube ? (link.match(/(?:v=|youtu\.be\/)([^&?]+)/)||[])[1] : null;
                   const mediaHtml = !link ? '' :
-                    isYoutube && videoId ? `<div style="margin-top:10px;border-radius:10px;overflow:hidden;aspect-ratio:16/9"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe></div>` :
-                    isGif ? `<img src="${link}" style="width:100%;border-radius:10px;margin-top:10px;max-height:220px;object-fit:cover" onerror="this.style.display='none'">` :
-                    `<a href="${link}" target="_blank" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;background:rgba(74,158,232,.1);border:1px solid rgba(74,158,232,.3);border-radius:10px;text-decoration:none;color:var(--blue);font-size:12px;font-weight:700">▶ Ver video / GIF →</a>`;
+                    isYoutube && videoId ? `<div style="margin-top:8px;border-radius:10px;overflow:hidden;aspect-ratio:16/9"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe></div>` :
+                    isGif ? `<img src="${link}" style="width:100%;border-radius:10px;margin-top:8px;max-height:200px;object-fit:cover" onerror="this.style.display='none'">` :
+                    `<a href="${link}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:6px 12px;background:rgba(74,158,232,.1);border:1px solid rgba(74,158,232,.3);border-radius:8px;text-decoration:none;color:var(--blue);font-size:11px;font-weight:700">▶ Ver video/GIF</a>`;
                   return `
-                <div style="padding:14px 0;border-bottom:1px solid var(--border);${ejIdx===ejercicios.length-1?'border-bottom:none':''}">
-                  <div style="display:flex;align-items:flex-start;gap:10px">
-                    <div style="width:28px;height:28px;border-radius:8px;background:${sec.color}20;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${sec.color};flex-shrink:0;margin-top:2px">${ejIdx+1}</div>
-                    <div style="flex:1">
-                      <div style="font-size:14px;font-weight:700;margin-bottom:4px">${ej.nombre}</div>
-                      ${seriesReps ? `<div style="font-size:13px;color:${sec.color};font-weight:700;margin-bottom:2px">${seriesReps}</div>` : ''}
-                      ${ej.descanso ? `<div style="font-size:11px;color:var(--muted);margin-bottom:2px">⏱ Descanso: ${ej.descanso}</div>` : ''}
-                      ${mediaHtml}
-                    </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);${ejIdx===ejercicios.length-1?'border-bottom:none':''}">
+                  <div style="width:24px;height:24px;border-radius:6px;background:${sec.color}20;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${sec.color};flex-shrink:0">${ejIdx+1}</div>
+                  <div style="flex:1">
+                    <div style="font-size:13px;font-weight:700">${nombre}</div>
+                    ${reps ? `<div style="font-size:12px;color:${sec.color};font-weight:700">${reps}</div>` : ''}
+                    ${mediaHtml}
                   </div>
                 </div>`;
                 }).join('')}
